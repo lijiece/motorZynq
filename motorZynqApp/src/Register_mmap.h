@@ -1,5 +1,5 @@
 /*
- * zynq_reg.h
+ * Register_mmap.h
  *
  * Memory-mapped register access for Zynq/Kria FPGA via /dev/mem.
  * Thread-safe using epicsMutex.
@@ -7,21 +7,32 @@
  * Based on Kria-Motor-Controller/src/sw/Reg.cpp
  */
 
-#ifndef ZYNQ_REG_H
-#define ZYNQ_REG_H
+#ifndef REGISTER_MMAP_H
+#define REGISTER_MMAP_H
 
 #include <cstdint>
 #include <cstddef>
 #include <sys/types.h>
 #include <epicsMutex.h>
 
-class zynqReg {
-public:
-    zynqReg(off_t baseAddr, size_t size);
-    ~zynqReg();
+// Default PL base address (can be overridden by Makefile)
+#ifndef PL_BASE_ADDR
+    #if defined(__aarch64__)
+        // ZynqMP (Zynq UltraScale+): 64-bit ARM
+        #define PL_BASE_ADDR 0x80000000
+    #else
+        // Zynq-7000: 32-bit ARM
+        #define PL_BASE_ADDR 0x43C00000
+    #endif
+#endif
 
-    zynqReg(const zynqReg&) = delete;
-    zynqReg& operator=(const zynqReg&) = delete;
+class Register {
+public:
+    Register(off_t baseAddr, size_t size);
+    ~Register();
+
+    Register(const Register&) = delete;
+    Register& operator=(const Register&) = delete;
 
     /* Full 32-bit register read/write */
     uint32_t read(off_t offset);
@@ -39,4 +50,4 @@ private:
     epicsMutex mutex_;
 };
 
-#endif /* ZYNQ_REG_H */
+#endif /* REGISTER_MMAP_H */

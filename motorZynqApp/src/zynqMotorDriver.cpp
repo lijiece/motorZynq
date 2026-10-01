@@ -499,7 +499,7 @@ zynqMotorController::zynqMotorController(const char *portName, int numAxes,
     createParam(ZYNQ_STEP_RATE_STRING,  asynParamInt32, &zynqStepRate_);
 
     /* Open mmap register access */
-    reg_ = std::make_unique<zynqReg>(static_cast<off_t>(baseAddr), REG_SIZE);
+    reg_ = std::make_unique<Register>(static_cast<off_t>(baseAddr), REG_SIZE);
 
     /* Check firmware compatibility (DEVICE/VERSION at 0x0/0x4) */
     uint32_t fwDevice  = readReg32(REG_DEVICE);

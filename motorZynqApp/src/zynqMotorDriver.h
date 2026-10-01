@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <cmath>
 
+#include <epicsExport.h>
 #include <asynMotorController.h>
 #include <asynMotorAxis.h>
 #include <epicsThread.h>
@@ -25,7 +26,13 @@
 #include <epicsTime.h>
 #include <epicsMutex.h>
 
-#include "zynq_reg.h"
+// Conditional register access header based on available device
+#ifdef USE_VIPIC_REGISTER
+    #include "Register_ioctl.hpp"    // /dev/vipic with ioctl (kernel driver)
+#else
+    #include "Register_mmap.h"       // /dev/mem with mmap (direct access)
+#endif
+
 #include "zynqMotorRegs_gen.hpp"
 
 /* ------------------------------------------------------------------ */
@@ -161,7 +168,7 @@ protected:
 #define NUM_ZYNQ_PARAMS  (LAST_ZYNQ_PARAM - FIRST_ZYNQ_PARAM + 1)
 
 private:
-    std::unique_ptr<zynqReg> reg_;
+    std::unique_ptr<Register> reg_;
     epicsThreadId profilerThreadId_;
     bool profilerRunning_;
 

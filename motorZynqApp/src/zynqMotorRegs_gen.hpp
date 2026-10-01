@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <sys/types.h>
 
-static constexpr off_t MOTOR_REG_OFFSET = 0x100;
+static constexpr off_t MOTOR_REG_OFFSET = 0x200;
 static constexpr off_t MOTOR_REG_STRIDE = 0x30;
 static constexpr std::size_t REG_SIZE = 0x1000;
 

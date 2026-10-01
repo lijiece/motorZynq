@@ -9,25 +9,6 @@
 #   PORT  - Asyn port name
 #   ADDR  - Axis number (0-3)
 
-# -- Direction Polarity --
-record(bo, "$(P)$(M):DirPol") {
-    field(DESC, "Direction polarity")
-    field(DTYP, "asynInt32")
-    field(OUT,  "@asyn($(PORT),$(ADDR))ZYNQ_DIR_POL")
-    field(ZNAM, "Normal")
-    field(ONAM, "Reversed")
-    field(PINI, "YES")
-}
-
-record(bi, "$(P)$(M):DirPol_RBV") {
-    field(DESC, "Direction polarity readback")
-    field(DTYP, "asynInt32")
-    field(INP,  "@asyn($(PORT),$(ADDR))ZYNQ_DIR_POL")
-    field(ZNAM, "Normal")
-    field(ONAM, "Reversed")
-    field(SCAN, "I/O Intr")
-}
-
 # -- Limit Switch Enable --
 record(bo, "$(P)$(M):LimitEn") {
     field(DESC, "Limit switch enable")
