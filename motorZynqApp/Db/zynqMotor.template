@@ -8,6 +8,26 @@
 #   M     - Motor name (e.g., "m1")
 #   PORT  - Asyn port name
 #   ADDR  - Axis number (0-3)
+#   FULL_STEPS_PER_REV - Physical full steps per revolution (default 200)
+
+## -- Direction Polarity --
+#record(bo, "$(P)$(M):DirPol") {
+#    field(DESC, "Direction polarity")
+#    field(DTYP, "asynInt32")
+#    field(OUT,  "@asyn($(PORT),$(ADDR))ZYNQ_DIR_POL")
+#    field(ZNAM, "Normal")
+#    field(ONAM, "Reversed")
+#    field(PINI, "YES")
+#}
+#
+#record(bi, "$(P)$(M):DirPol_RBV") {
+#    field(DESC, "Direction polarity readback")
+#    field(DTYP, "asynInt32")
+#    field(INP,  "@asyn($(PORT),$(ADDR))ZYNQ_DIR_POL")
+#    field(ZNAM, "Normal")
+#    field(ONAM, "Reversed")
+#    field(SCAN, "I/O Intr")
+#}
 
 # -- Limit Switch Enable --
 record(bo, "$(P)$(M):LimitEn") {
@@ -95,6 +115,7 @@ record(mbbi, "$(P)$(M):UstepMode_RBV") {
     field(SVVL, "8")
     field(EIST, "NC 1/2 step")
     field(EIVL, "17")
+    field(UNSV, "INVALID")
     field(SCAN, "I/O Intr")
 }
 
@@ -134,16 +155,27 @@ record(longin, "$(P)$(M):StepRate_RBV") {
     field(SCAN, "I/O Intr")
 }
 
-# -- Auto MRES Calculation --
-# Computes MRES = UREV / (SREV * microsteps_per_step)
-# where microsteps_per_step = 2^(UstepMode & 0xF)
-record(calcout, "$(P)$(M):CalcMRES") {
-    field(DESC, "Auto-calculate MRES")
-    field(INPA, "$(P)$(M).UREV CP")
-    field(INPB, "$(P)$(M).SREV CP")
-    field(INPC, "$(P)$(M):UstepMode_RBV CP")
-    field(CALC, "A/(B*2^(FLOOR(C)&15))")
-    field(OUT,  "$(P)$(M).MRES PP")
+# -- Motor Resolution --
+# FullStepsPerRev is the physical full-step count, independent of microstepping.
+# SREV counts commanded microsteps per revolution. The motor record calculates
+# MRES = UREV / SREV when SREV changes, preserving UREV and EGU velocities.
+record(longout, "$(P)$(M):FullStepsPerRev") {
+    field(DESC, "Full steps per revolution")
+    field(VAL,  "$(FULL_STEPS_PER_REV=200)")
+    field(DRVL, "1")
+    # Keep SREV within a signed 32-bit integer at the maximum 1/256 mode.
+    field(DRVH, "8388607")
+    field(PINI, "YES")
+}
+
+record(calcout, "$(P)$(M):CalcSREV") {
+    field(DESC, "Calculate microsteps per revolution")
+    field(INPA, "$(P)$(M):FullStepsPerRev CP MS")
+    # RVAL is the hardware mode code; VAL is the mbbi state index.
+    field(INPB, "$(P)$(M):UstepMode_RBV.RVAL CP MS")
+    field(CALC, "A*2^(FLOOR(B)&15)")
+    field(OUT,  "$(P)$(M).SREV PP")
     field(OOPT, "Every Time")
     field(DOPT, "Use CALC")
+    field(IVOA, "Don't drive outputs")
 }

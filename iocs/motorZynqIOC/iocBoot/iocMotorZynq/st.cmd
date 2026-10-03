@@ -2,6 +2,11 @@
 
 < envPaths
 
+epicsEnvSet("PORT", "ZYNQ1")
+epicsEnvSet("P", "Det")
+epicsEnvSet("R", "{Mtr}")
+epicsEnvSet("PREFIX", "$(P)$(R)")
+
 cd "${TOP}"
 
 ## Register all support components
@@ -17,6 +22,8 @@ dbLoadTemplate("db/motor.substitutions")
 
 ## Load custom DRV8434A parameter records from substitutions file
 dbLoadTemplate("db/zynqMotor.substitutions")
+
+dbLoadRecords("$(ASYN)/db/asynRecord.db", "P=$(PREFIX),R=asyn1,PORT=$(PORT),ADDR=0,OMAX=0,IMAX=0")
 
 cd "${TOP}/iocBoot/${IOC}"
 iocInit

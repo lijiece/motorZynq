@@ -20,6 +20,8 @@
 #include <cmath>
 #include <stdexcept>
 #include <cstdio>
+#include <iostream>
+#include <iomanip>
 
 #include <iocsh.h>
 #include <epicsExport.h>
@@ -118,21 +120,22 @@ static void writeReg64(zynqMotorController *pC, off_t loOffset, int64_t val)
 }
 
 zynqMotorAxis::zynqMotorAxis(zynqMotorController *pC, int axisNo)
-    : asynMotorAxis(pC, axisNo)
-    , pC_(pC)
-    , axisRegBase_(MOTOR_REG_OFFSET + axisNo * MOTOR_REG_STRIDE)
-    , moveState_(MOVE_IDLE)
-    , moveRequested_(false)
-    , softPosition_(0.0)
-    , moveStartPos_(0.0)
-    , totalMoveSteps_(0)
-    , moveDirection_(1)
-    , profilePhase_(PHASE_IDLE)
-    , profileActive_(false)
-    , vBase_(0.0)
-    , vMax_(0.0)
-    , tAccel_(0.0)
-    , dAccelSteps_(0)
+    : asynMotorAxis       (pC, axisNo)
+    , pC_                 (pC)
+    , axisNo_             (axisNo)
+    , axisRegBase_        (MOTOR_REG_OFFSET + axisNo * MOTOR_REG_STRIDE)
+    , moveState_          (MOVE_IDLE)
+    , moveRequested_      (false)
+    , softPosition_       (0.0)
+    , moveStartPos_       (0.0)
+    , totalMoveSteps_     (0)
+    , moveDirection_      (1)
+    , profilePhase_       (PHASE_IDLE)
+    , profileActive_      (false)
+    , vBase_              (0.0)
+    , vMax_               (0.0)
+    , tAccel_             (0.0)
+    , dAccelSteps_        (0)
     , decelStartRemaining_(0)
 {
     memset(&moveStartTime_, 0, sizeof(moveStartTime_));
@@ -140,6 +143,28 @@ zynqMotorAxis::zynqMotorAxis(zynqMotorController *pC, int axisNo)
 
     /* Enable the motor driver by default */
     pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_EN_BIT, 1, 1);
+}
+
+/* ------------------------------------------------------------------ */
+
+uint32_t zynqMotorAxis::readAxisReg(off_t offset)
+{
+    uint32_t val = pC_->readReg32(axisRegBase_ + offset);
+    std::cout << __func__
+              << ": read register 0x" << std::hex << std::setw(3) << std::setfill('0')
+              << (axisRegBase_+offset) << ": " << val
+	      << std::dec << std::endl;
+    return val;
+}
+
+void zynqMotorAxis::writeAxisReg(off_t offset, uint32_t val)
+{
+    std::cout << __func__
+              << ": write register 0x" << std::hex << std::setw(3) << std::setfill('0')
+              << (axisRegBase_+offset) << ": " << val
+	      << std::dec << std::endl;
+    pC_->writeReg32(axisRegBase_ + offset, val);
+    [[maybe_unused]] uint32_t rbv = readAxisReg(offset);
 }
 
 /* ------------------------------------------------------------------ */
@@ -172,12 +197,25 @@ asynStatus zynqMotorAxis::move(double position, int relative,
     /* position and velocities are in steps (motor record converts EGU via MRES).
      * acceleration is in seconds (ACCL field = time from VBAS to VELO).
      */
-
+    asynPrint( pC_->pasynUserSelf
+             , ASYN_TRACE_FLOW
+             , "Axis[%d]::move(): position=%g relative=%d\n                 minVel=%g maxVel=%g accel=%g\n"
+	     , axisNo_
+	     , position
+	     , relative
+             , minVelocity
+	     , maxVelocity
+	     , acceleration
+	     );
+	  
     /* Compute target position and total steps */
     double targetPos;
-    if (relative) {
+    if (relative)
+    {
         targetPos = softPosition_ + position;
-    } else {
+    }
+    else
+    {
         targetPos = position;
     }
 
@@ -189,7 +227,8 @@ asynStatus zynqMotorAxis::move(double position, int relative,
         return asynSuccess;
 
     // Set EN, clear SLEEP and RESET bits here to guarantee timing requirement
-    pC_->writeReg32( axisRegBase_ + REG_CONTROL, 1U << CTRL_EN_BIT );
+    //pC_->writeReg32( axisBaseReg_ + reg, 1U << CTRL_EN_BIT );
+    writeAxisReg( REG_CONTROL, 1U << CTRL_EN_BIT );
 
     /* Velocity parameters */
     vBase_ = fabs(minVelocity);
@@ -236,11 +275,25 @@ asynStatus zynqMotorAxis::move(double position, int relative,
     pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_DIR_BIT, 1, hwDir);
 
     /* Set step count (motor record already works in microstep units via auto-MRES) */
-    pC_->writeReg32(axisRegBase_ + REG_STEP_SP, totalMoveSteps_);
+    //pC_->writeReg32(axisRegBase_ + REG_STEP_SP, totalMoveSteps_);
+    asynPrint( pC_->pasynUserSelf
+             , ASYN_TRACE_FLOW
+	     , "Axis[%d]::move(): set step count to %d\n"
+	     , axisNo_
+	     , totalMoveSteps_
+	     );
+    writeAxisReg( REG_STEP_SP, totalMoveSteps_ );
 
     /* Set initial velocity (base speed) */
     uint32_t initRate = velocityToStepRate(vBase_);
-    pC_->writeReg32(axisRegBase_ + REG_STEP_RATE, initRate);
+    //pC_->writeReg32(axisRegBase_ + REG_STEP_RATE, initRate);
+    asynPrint( pC_->pasynUserSelf
+             , ASYN_TRACE_FLOW
+	     , "Axis[%d]::move(): set step rate to %d\n"
+	     , axisNo_
+	     , initRate
+	     );
+    writeAxisReg( REG_STEP_RATE, initRate );
 
     /* Start the move: write en=1, mstart=1 to control register.
      * Read-modify-write to preserve other bits, then set mstart (one-shot). */
@@ -250,7 +303,14 @@ asynStatus zynqMotorAxis::move(double position, int relative,
     ctrl &= ~(1U << CTRL_MSTOP_BIT);   /* clear stop bit */
     /* Direction already set above via setField, re-apply here */
     ctrl = (ctrl & ~(1U << CTRL_DIR_BIT)) | (hwDir << CTRL_DIR_BIT);
-    pC_->writeReg32(axisRegBase_ + REG_CONTROL, ctrl);
+    //pC_->writeReg32(axisRegBase_ + REG_CONTROL, ctrl);
+    asynPrint( pC_->pasynUserSelf
+             , ASYN_TRACE_FLOW
+	     , "Axis[%d]::move(): set control word to %d\n"
+	     , axisNo_
+	     , ctrl
+	     );
+    writeAxisReg( REG_CONTROL, ctrl );
 
     /* Activate profiler — skip accel phase for constant-velocity moves */
     profilePhase_ = (vMax_ > vBase_) ? PHASE_ACCEL : PHASE_CRUISE;
@@ -283,7 +343,7 @@ asynStatus zynqMotorAxis::stop(double acceleration)
 
     /* Go directly to IDLE (not DONE) since we don't want to snap to target */
     moveRequested_ = false;
-    moveState_ = MOVE_IDLE;
+    //moveState_ = MOVE_IDLE;
 
     return asynSuccess;
 }
@@ -306,28 +366,55 @@ asynStatus zynqMotorAxis::poll(bool *moving)
     switch (moveState_) {
 
     case MOVE_IDLE:
-        if (moveRequested_) {
-            moveRequested_ = false;
-            moveState_ = MOVE_ACTIVE;
-        }
-        break;
+        //if (moveRequested_)
+	//{
+        //    std::cout << __func__
+        //              << ": start moving..."
+        //              << std::endl;
+	//    
+        //    moveRequested_ = false;
+        //    moveState_ = MOVE_START;
+        //}
+        //break;
+        if (!moveRequested_)
+            break;
 
-    case MOVE_ACTIVE: {
-        /* Position is updated from realtime pos_rb below. */
-        if (!isMoving)
-            moveState_ = MOVE_DONE;
-        break;
-    }
+        moveState_ = MOVE_ACTIVE;
+        // fall through
 
-    case MOVE_DONE:
-        /* Finalize: snap position to exact target */
+    //case MOVE_START:
+    //    if (isMoving)
+    //        moveState_ = MOVE_ACTIVE;
+    //    break;
+
+    case MOVE_ACTIVE:
+    {
+    //    /* Position is updated from realtime pos_rb below. */
+    //    if (!isMoving)
+    //    {
+    //        std::cout << __func__
+    //                  << ": stop move"
+    //                  << std::endl;
+    //        moveState_ = MOVE_DONE;
+    //    }
+    //    break;
         profileActive_ = false;
         profilePhase_ = PHASE_IDLE;
-        softPosition_ = moveStartPos_
-                      + moveDirection_ * static_cast<double>(totalMoveSteps_);
         pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_EN_BIT, 1, 0);
         moveState_ = MOVE_IDLE;
-        break;
+	break;
+    }
+
+    //case MOVE_DONE:
+    //    /* Finalize: snap position to exact target */
+    //    profileActive_ = false;
+    //    profilePhase_ = PHASE_IDLE;
+    //    softPosition_ = moveStartPos_
+    //                  + moveDirection_ * static_cast<double>(totalMoveSteps_);
+    //    pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_EN_BIT, 1, 0);
+    //    moveState_ = MOVE_IDLE;
+    //    break;
+    //}
     }
 
     /* Read power-on (enable) state */

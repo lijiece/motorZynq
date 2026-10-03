@@ -57,7 +57,7 @@ static const double PROFILE_UPDATE_SEC = 0.0001;  /* 0.1 ms */
 /* Custom asyn parameter string names                                  */
 /* ------------------------------------------------------------------ */
 
-#define ZYNQ_DIR_POL_STRING      "ZYNQ_DIR_POL"
+//#define ZYNQ_DIR_POL_STRING      "ZYNQ_DIR_POL"
 #define ZYNQ_LIMIT_EN_STRING     "ZYNQ_LIMIT_EN"
 #define ZYNQ_LIMIT_POL_STRING    "ZYNQ_LIMIT_POL"
 #define ZYNQ_USTEP_MODE_STRING   "ZYNQ_USTEP_MODE"
@@ -92,12 +92,15 @@ public:
 
 private:
     zynqMotorController *pC_;
+    int axisNo_;
 
     /* Per-axis register base offset (MOTOR_REG_OFFSET + axisNo * MOTOR_REG_STRIDE) */
     off_t axisRegBase_;
 
     /* Move lifecycle FSM (owned exclusively by poll()) */
-    enum MoveState { MOVE_IDLE, MOVE_ACTIVE, MOVE_DONE };
+    //enum MoveState { MOVE_IDLE, MOVE_START, MOVE_ACTIVE, MOVE_DONE };
+    enum MoveState { MOVE_IDLE, MOVE_ACTIVE };
+
     MoveState moveState_;
     bool     moveRequested_;     /* set by move(), consumed by poll() */
 
@@ -124,6 +127,9 @@ private:
     double   stepRateToVelocity(uint32_t stepRate);
 
     friend class zynqMotorController;
+
+    void writeAxisReg(off_t offset, uint32_t val);
+    uint32_t readAxisReg(off_t offset);
 };
 
 /* ------------------------------------------------------------------ */
@@ -163,9 +169,9 @@ protected:
     int zynqReset_;
     int zynqStepRate_;
 
-#define FIRST_ZYNQ_PARAM zynqLimitEn_
-#define LAST_ZYNQ_PARAM  zynqStepRate_
-#define NUM_ZYNQ_PARAMS  (LAST_ZYNQ_PARAM - FIRST_ZYNQ_PARAM + 1)
+//#define FIRST_ZYNQ_PARAM zynqLimitEn_
+//#define LAST_ZYNQ_PARAM  zynqStepRate_
+#define NUM_ZYNQ_PARAMS  6
 
 private:
     std::unique_ptr<Register> reg_;

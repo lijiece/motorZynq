@@ -50,9 +50,14 @@ ifeq ($(T_A),linux-aarch64)
 ifneq ($(filter install,$(MAKECMDGOALS)),)
 ifndef ZYNQ_INFO_PRINTED
 export ZYNQ_INFO_PRINTED := 1
-$(info )
-$(info ===== Motor Zynq: $(PLATFORM_NAME) | PL:$(PL_BASE_ADDR) | /dev/vipic:$(VIPIC_EXISTS) | $(REG_TYPE) =====)
-$(info )
+$(info ======================================)
+$(info ---       System Information       ---)
+$(info --------------------------------------)
+$(info - Motor Zynq : $(PLATFORM_NAME))
+$(info - PL         : $(PL_BASE_ADDR))
+$(info - /dev/vipic : $(VIPIC_EXISTS))
+$(info - Register   : $(REG_TYPE))
+$(info ======================================)
 endif
 endif
 endif

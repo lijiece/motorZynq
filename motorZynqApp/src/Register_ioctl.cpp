@@ -8,6 +8,8 @@
 #include <sys/ioctl.h>
 #include <cstring>
 #include <cerrno>
+#include <iomanip>
+#include <iostream>
 
 // IOCTL definitions (from pl_ioctl.h)
 #define READ_REG  _IOWR('p', 8, pldrv_io_t *)
@@ -44,6 +46,8 @@ uint32_t Register::read(off_t offset) {
     io.address = static_cast<uint32_t>(offset / 4);
     io.data = 0;
 
+    //std::cout << "Reading register 0x" << std::hex << std::setw(2) << std::setfill('0')
+    //          << offset << std::dec << std::endl;
     if (::ioctl(fd_, READ_REG, &io) < 0) {
         throw RegisterAccessException(
             std::string("READ_REG failed at offset 0x") +

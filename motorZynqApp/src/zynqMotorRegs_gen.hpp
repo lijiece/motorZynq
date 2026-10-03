@@ -8,8 +8,7 @@
  * Do not edit manually.
  */
 
-#ifndef ZYNQ_MOTOR_REGS_GEN_HPP
-#define ZYNQ_MOTOR_REGS_GEN_HPP
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -53,4 +52,3 @@ static constexpr uint8_t STAT_MOVING_BIT = 1;
 static constexpr uint8_t STAT_PLIMIT_BIT = 2;
 static constexpr uint8_t STAT_NLIMIT_BIT = 3;
 
-#endif // ZYNQ_MOTOR_REGS_GEN_HPP
