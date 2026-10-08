@@ -1,9 +1,9 @@
-file "db/zynqMotor.template"
+file "$(MOTORZYNQ)/db/zynqMotor.template"
 {
 pattern
-{P,      M,                PORT,  ADDR, FULL_STEPS_PER_REV}
-{"Det",  "{Sample-Ax:1}",  ZYNQ1, 0, 200}
-{"Det",  "{Sample-Ax:2}",  ZYNQ1, 1, 200}
-{"Det",  "{Sample-Ax:3}",  ZYNQ1, 2, 200}
-{"Det",  "{Sample-Ax:4}",  ZYNQ1, 3, 200}
+{P,         M,              PORT,      ADDR, FULL_STEPS_PER_REV}
+{"$(Sys)",  "{$(Dev)-Ax:1}",  "$(Port)", 0,    200}
+{"$(Sys)",  "{$(Dev)-Ax:2}",  "$(Port)", 1,    200}
+{"$(Sys)",  "{$(Dev)-Ax:3}",  "$(Port)", 2,    200}
+{"$(Sys)",  "{$(Dev)-Ax:4}",  "$(Port)", 3,    200}
 }

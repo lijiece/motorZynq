@@ -26,6 +26,8 @@
 #include <epicsTime.h>
 #include <epicsMutex.h>
 
+#include <TIDrv.hpp>
+
 // Conditional register access header based on available device
 #ifdef USE_VIPIC_REGISTER
     #include "Register_ioctl.hpp"    // /dev/vipic with ioctl (kernel driver)
@@ -35,9 +37,8 @@
 
 #include "zynqMotorRegs_gen.hpp"
 
-/* ------------------------------------------------------------------ */
-/* Hardware constants                                                  */
-/* ------------------------------------------------------------------ */
+static const uint8_t MTR_DRV_8825  = 0x0;
+static const uint8_t MTR_DRV_8434A = 0x1;
 
 static const uint64_t FPGA_CLOCK_HZ       = 100000000ULL;  /* 100 MHz */
 static const uint32_t MAX_STEP_FREQ_HZ    = 250000;        /* DRV8434A max */
@@ -91,6 +92,7 @@ public:
     void updateProfile();
 
 private:
+
     zynqMotorController *pC_;
     int axisNo_;
 
@@ -138,9 +140,13 @@ private:
 
 class zynqMotorController : public asynMotorController {
 public:
-    zynqMotorController(const char *portName, int numAxes,
-                        uint32_t baseAddr,
-                        double movingPollPeriod, double idlePollPeriod);
+    zynqMotorController( const char *portName
+                       , int numAxes
+                       , uint32_t baseAddr
+                       , double movingPollPeriod
+		       , double idlePollPeriod
+		       , std::string mtrDrvModel
+		       );
 
     ~zynqMotorController() override;
 
@@ -174,9 +180,10 @@ protected:
 #define NUM_ZYNQ_PARAMS  6
 
 private:
-    std::unique_ptr<Register> reg_;
-    epicsThreadId profilerThreadId_;
-    bool profilerRunning_;
+    TIDrv::DrvModel            drvModel_;
+    std::unique_ptr<Register>  reg_;
+    epicsThreadId              profilerThreadId_;
+    bool                       profilerRunning_;
 
     static void profilerThreadC(void *drvPvt);
 

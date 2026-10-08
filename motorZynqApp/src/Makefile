@@ -33,6 +33,7 @@ endif
 
 motorZynq_SRCS += zynqMotorDriver.cpp
 motorZynq_SRCS += zynqMotorRegister.cpp
+motorZynq_SRCS += TIDrv.cpp
 
 DBD += motorZynqSupport.dbd
 motorZynqSupport_DBD += motorZynq.dbd
@@ -41,7 +42,7 @@ motorZynq_LIBS += motor
 motorZynq_LIBS += asyn
 motorZynq_LIBS += $(EPICS_BASE_IOC_LIBS)
 
-USR_CXXFLAGS += -std=c++14
+USR_CXXFLAGS += -std=c++17
 
 include $(TOP)/configure/RULES
 

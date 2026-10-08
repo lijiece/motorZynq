@@ -14,6 +14,7 @@
  */
 
 #include "zynqMotorDriver.h"
+#include "TIDrv.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -96,6 +97,8 @@ bool isFirmwareCompatible(uint32_t device, uint32_t version)
 }
 
 } // namespace
+
+using namespace TIDrv;
 
 /* ================================================================== */
 /*  zynqMotorAxis                                                      */
@@ -228,12 +231,19 @@ asynStatus zynqMotorAxis::move(double position, int relative,
 
     // Set EN, clear SLEEP and RESET bits here to guarantee timing requirement
     //pC_->writeReg32( axisBaseReg_ + reg, 1U << CTRL_EN_BIT );
+    asynPrint( pC_->pasynUserSelf
+             , ASYN_TRACE_FLOW
+             , "Axis[%d]::%s(): enable motor\n"
+	     , axisNo_
+	     , __func__
+	     );
     writeAxisReg( REG_CONTROL, 1U << CTRL_EN_BIT );
 
     /* Velocity parameters */
     vBase_ = fabs(minVelocity);
     vMax_  = fabs(maxVelocity);
-    tAccel_ = (vMax_ - vBase_) / fabs(acceleration);
+    //tAccel_ = (vMax_ - vBase_) / fabs(acceleration);
+    tAccel_ = fabs(acceleration);
 
     if (vBase_ < 1.0) vBase_ = 1.0;        /* minimum 1 step/sec */
     if (vMax_ < vBase_) vMax_ = vBase_;
@@ -278,8 +288,9 @@ asynStatus zynqMotorAxis::move(double position, int relative,
     //pC_->writeReg32(axisRegBase_ + REG_STEP_SP, totalMoveSteps_);
     asynPrint( pC_->pasynUserSelf
              , ASYN_TRACE_FLOW
-	     , "Axis[%d]::move(): set step count to %d\n"
+	     , "Axis[%d]::%s(): set step count to %d\n"
 	     , axisNo_
+	     , __func__
 	     , totalMoveSteps_
 	     );
     writeAxisReg( REG_STEP_SP, totalMoveSteps_ );
@@ -289,8 +300,9 @@ asynStatus zynqMotorAxis::move(double position, int relative,
     //pC_->writeReg32(axisRegBase_ + REG_STEP_RATE, initRate);
     asynPrint( pC_->pasynUserSelf
              , ASYN_TRACE_FLOW
-	     , "Axis[%d]::move(): set step rate to %d\n"
+	     , "Axis[%d]::%s(): set step rate to %d\n"
 	     , axisNo_
+	     , __func__
 	     , initRate
 	     );
     writeAxisReg( REG_STEP_RATE, initRate );
@@ -306,9 +318,9 @@ asynStatus zynqMotorAxis::move(double position, int relative,
     //pC_->writeReg32(axisRegBase_ + REG_CONTROL, ctrl);
     asynPrint( pC_->pasynUserSelf
              , ASYN_TRACE_FLOW
-	     , "Axis[%d]::move(): set control word to %d\n"
+	     , "Axis[%d]::%s(): enable motor, set START bit, clear STOP bit\n"
 	     , axisNo_
-	     , ctrl
+	     , __func__
 	     );
     writeAxisReg( REG_CONTROL, ctrl );
 
@@ -355,10 +367,10 @@ asynStatus zynqMotorAxis::poll(bool *moving)
     /* Read status register */
     uint32_t status = pC_->readReg32(axisRegBase_ + REG_STATUS);
 
-    int fault   = (status >> STAT_FAULT_BIT)  & 1;
+    int fault    = (status >> STAT_FAULT_BIT)  & 1;
     int isMoving = (status >> STAT_MOVING_BIT) & 1;
-    int pLimit  = (status >> STAT_PLIMIT_BIT) & 1;
-    int nLimit  = (status >> STAT_NLIMIT_BIT) & 1;
+    int pLimit   = (status >> STAT_PLIMIT_BIT) & 1;
+    int nLimit   = (status >> STAT_NLIMIT_BIT) & 1;
 
     *moving = (isMoving != 0);
 
@@ -398,11 +410,14 @@ asynStatus zynqMotorAxis::poll(bool *moving)
     //        moveState_ = MOVE_DONE;
     //    }
     //    break;
+    if (!isMoving)
+    {
         profileActive_ = false;
         profilePhase_ = PHASE_IDLE;
         pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_EN_BIT, 1, 0);
         moveState_ = MOVE_IDLE;
 	break;
+    }
     }
 
     //case MOVE_DONE:
@@ -489,11 +504,14 @@ void zynqMotorAxis::updateProfile()
     epicsTimeGetCurrent(&now);
 
     uint32_t remaining = pC_->readReg32(axisRegBase_ + REG_STEP_RB);
+    std::cout << remaining << " steps left\n";
     double v = vBase_;
 
     switch (profilePhase_) {
 
-    case PHASE_ACCEL: {
+    case PHASE_ACCEL:
+    {
+        std::cout << "Phase accelerating\n";
         double elapsed = epicsTimeDiffInSeconds(&now, &moveStartTime_);
 
         if (elapsed >= tAccel_) {
@@ -517,6 +535,7 @@ void zynqMotorAxis::updateProfile()
     }
 
     case PHASE_CRUISE:
+        std::cout << "Phase cruise\n";
         v = vMax_;
 	
         /* Start deceleration when remaining steps <= decel distance */
@@ -526,7 +545,9 @@ void zynqMotorAxis::updateProfile()
         }
         break;
 
-    case PHASE_DECEL: {
+    case PHASE_DECEL:
+    {
+        std::cout << "Phase deceleration\n";
         double elapsed = epicsTimeDiffInSeconds(&now, &decelStartTime_);
 
         if (elapsed >= tAccel_) {
@@ -545,7 +566,10 @@ void zynqMotorAxis::updateProfile()
     }
 
     case PHASE_DONE:
+        
+        std::cout << "Phase done\n";
     case PHASE_IDLE:
+        std::cout << "Phase idle\n";
         profileActive_ = false;
         return;
     }
@@ -564,18 +588,25 @@ void zynqMotorAxis::updateProfile()
 /*  zynqMotorController                                                */
 /* ================================================================== */
 
-zynqMotorController::zynqMotorController(const char *portName, int numAxes,
-                                         uint32_t baseAddr,
-                                         double movingPollPeriod,
-                                         double idlePollPeriod)
-    : asynMotorController(portName, numAxes,
-                          NUM_ZYNQ_PARAMS,
-                          0, /* No additional interfaces */
-                          0, /* No additional callback interfaces */
-                          ASYN_CANBLOCK | ASYN_MULTIDEVICE,
-                          1, /* autoConnect */
-                          0, 0) /* default priority and stack size */
-    , profilerRunning_(true)
+zynqMotorController::zynqMotorController( const char *portName
+                                        , int numAxes
+                                        , uint32_t baseAddr
+                                        , double movingPollPeriod
+                                        , double idlePollPeriod
+					, std::string drvModelString
+					)
+    : asynMotorController( portName
+                         , numAxes
+                         , NUM_ZYNQ_PARAMS
+                         , 0 /* No additional interfaces */
+                         , 0 /* No additional callback interfaces */
+                         , ASYN_CANBLOCK | ASYN_MULTIDEVICE
+                         , 1 /* autoConnect */
+                         , 0
+			 , 0
+			 ) /* default priority and stack size */
+    , drvModel_       ( TIDrv::getDrvModel(drvModelString) )
+    , profilerRunning_( true                               )
 {
     /* Create custom parameters */
     createParam(ZYNQ_LIMIT_EN_STRING,   asynParamInt32, &zynqLimitEn_);
@@ -710,23 +741,34 @@ asynStatus zynqMotorController::writeInt32(asynUser *pasynUser, epicsInt32 value
 
     off_t axBase = pAxis->axisRegBase_;
 
-    if (function == zynqLimitEn_) {
+    if (function == zynqLimitEn_)
+    {
         writeRegField(axBase + REG_CFG, CFG_LIMIT_EN_BIT, 1, value & 1);
-    } else if (function == zynqLimitPol_) {
+    } else if (function == zynqLimitPol_)
+    {
         writeRegField(axBase + REG_CFG, CFG_LIMIT_POL_BIT, 1, value & 1);
-    } else if (function == zynqUstepMode_) {
-        writeRegField(axBase + REG_CFG, CFG_USTEP_MODE_BIT, CFG_USTEP_MODE_WID,
-                       static_cast<uint32_t>(value));
-    } else if (function == zynqSleep_) {
+    } else if (function == zynqUstepMode_)
+    {
+        auto m_value = TIDrv::getDrvMWord( drvModel_, static_cast<uint32_t>(value) );
+
+        writeRegField( axBase + REG_CFG
+	             , CFG_USTEP_MODE_BIT
+		     , CFG_USTEP_MODE_WID
+                     , m_value
+		     );
+    } else if (function == zynqSleep_)
+    {
         writeRegField(axBase + REG_CONTROL, CTRL_SLEEP_BIT, 1, value & 1);
-    } else if (function == zynqReset_) {
+    } else if (function == zynqReset_)
+    {
         if (value) {
             writeRegField(axBase + REG_CONTROL, CTRL_RESET_BIT, 1, 1);
             /* Auto-clear reset after a brief hold */
             epicsThreadSleep(0.001);
             writeRegField(axBase + REG_CONTROL, CTRL_RESET_BIT, 1, 0);
         }
-    } else {
+    } else
+    {
         /* Delegate to base class for standard motor parameters */
         return asynMotorController::writeInt32(pasynUser, value);
     }

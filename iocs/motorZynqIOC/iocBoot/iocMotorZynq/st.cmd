@@ -2,10 +2,11 @@
 
 < envPaths
 
-epicsEnvSet("PORT", "ZYNQ1")
-epicsEnvSet("P", "Det")
-epicsEnvSet("R", "{Mtr}")
-epicsEnvSet("PREFIX", "$(P)$(R)")
+epicsEnvSet("P",         "Det")
+epicsEnvSet("R",         "Sample")
+epicsEnvSet("PORT",      "ZYNQ")
+epicsEnvSet("PREFIX",    "$(P){$(R)}")
+epicsEnvSet("DRV_MODEL", "DRV8434A")
 
 cd "${TOP}"
 
@@ -15,13 +16,14 @@ motorZynqIOC_registerRecordDeviceDriver pdbbase
 
 ## Create the motor controller
 ## zynqMotorCreateController(portName, numAxes, baseAddr, movingPollMs, idlePollMs)
-zynqMotorCreateController("ZYNQ1", 4, 0x80000000, 100, 1000)
+zynqMotorCreateController("$(PORT)", 4, 0x80000000, 100, 1000, "$(DRV_MODEL)")
 
 ## Load motor records from substitutions file
-dbLoadTemplate("db/motor.substitutions")
+dbLoadTemplate("db/motor.substitutions", "Sys=$(P), Dev=$(R), Port=$(PORT)")
 
 ## Load custom DRV8434A parameter records from substitutions file
-dbLoadTemplate("db/zynqMotor.substitutions")
+dbLoadTemplate("db/zynqMotor.substitutions", "Sys=$(P), Dev=$(R), Port=$(PORT)")
+dbLoadTemplate("db/$(DRV_MODEL).substitutions", "Sys=$(P), Dev=$(R), Port=$(PORT)")
 
 dbLoadRecords("$(ASYN)/db/asynRecord.db", "P=$(PREFIX),R=asyn1,PORT=$(PORT),ADDR=0,OMAX=0,IMAX=0")
 

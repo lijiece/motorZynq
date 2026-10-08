@@ -1,0 +1,9 @@
+file "$(MOTORZYNQ)/db/TIDrv8434A.template"
+{
+pattern
+{P,         M,                PORT,      ADDR}
+{"$(Sys)",  "{$(Dev)-Ax:1}",  "$(Port)", 0   }
+{"$(Sys)",  "{$(Dev)-Ax:2}",  "$(Port)", 1   }
+{"$(Sys)",  "{$(Dev)-Ax:3}",  "$(Port)", 2   }
+{"$(Sys)",  "{$(Dev)-Ax:4}",  "$(Port)", 3   }
+}

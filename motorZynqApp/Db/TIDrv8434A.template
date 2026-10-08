@@ -1,0 +1,61 @@
+# Microstepping mode for TI motor driver
+# DRV8434A.
+#
+# Macros:
+#   P     - PV prefix (e.g., "ZYNQ:")
+#   M     - Motor name (e.g., "m1")
+#   PORT  - Asyn port name
+#   ADDR  - Axis number (0-3)
+
+
+record(mbbo, "$(P)$(M):UstepMode") {
+    field(DESC, "Microstep mode")
+    field(DTYP, "asynInt32")
+    field(OUT,  "@asyn($(PORT),$(ADDR))ZYNQ_USTEP_MODE")
+    field(ZRST, "Full step 100%")
+    field(ZRVL, "0")
+    field(ONST, "1/2 step, non-circular")
+    field(ONVL, "1")
+    field(TWST, "1/2 step")
+    field(TWVL, "2")
+    field(THST, "1/4 step")
+    field(THVL, "3")
+    field(FRST, "1/8 step")
+    field(FRVL, "4")
+    field(FVST, "1/16 step")
+    field(FVVL, "5")
+    field(SXST, "1/32 step")
+    field(SXVL, "6")
+    field(SVST, "1/128 step")
+    field(SVVL, "7")
+    field(EIST, "1/256 step")
+    field(EIVL, "8")
+    field(PINI, "YES")
+}
+
+record(mbbi, "$(P)$(M):UstepMode_RBV") {
+    field(DESC, "Microstep mode readback")
+    field(DTYP, "asynInt32")
+    field(INP,  "@asyn($(PORT),$(ADDR))ZYNQ_USTEP_MODE")
+    field(ZRST, "Full step 100%")
+    field(ZRVL, "0")
+    field(ONST, "1/2 step, non-circular")
+    field(ONVL, "1")
+    field(TWST, "1/2 step")
+    field(TWVL, "2")
+    field(THST, "1/4 step")
+    field(THVL, "3")
+    field(FRST, "1/8 step")
+    field(FRVL, "4")
+    field(FVST, "1/16 step")
+    field(FVVL, "5")
+    field(SXST, "1/32 step")
+    field(SXVL, "6")
+    field(SVST, "1/128 step")
+    field(SVVL, "7")
+    field(EIST, "1/256 step")
+    field(EIVL, "8")
+    field(UNSV, "INVALID")
+    field(SCAN, "I/O Intr")
+}
+
