@@ -1,0 +1,4 @@
+NAME=motorZynq
+PORT=4050
+HOST=kria
+USER=softioc

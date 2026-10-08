@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
 
 using namespace std::string_view_literals;
@@ -51,14 +53,8 @@ const std::array<std::array<DrvMBit, 3>, 8> DRV8825_M = {{
     {{ {1, 0}, {1, 0}, {1, 0} }}
 }};
 
-uint32_t getDrvMWord( const DrvModel drvModel
-                    , const uint32_t index
-		    );
-
-template<typename T>
-uint32_t getDrvMVal ( const T& M
-                    , uint32_t index
-		    );
+/* The EPICS-facing value is the driver mode-table index. */
+std::optional<uint32_t> getDrvMWord(DrvModel drvModel, uint32_t mode);
+std::optional<uint32_t> getDrvUstepMode(DrvModel drvModel, uint32_t mWord);
 
 }
-

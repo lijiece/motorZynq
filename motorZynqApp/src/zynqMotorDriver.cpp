@@ -229,21 +229,23 @@ asynStatus zynqMotorAxis::move(double position, int relative,
     if (totalMoveSteps_ == 0)
         return asynSuccess;
 
-    // Set EN, clear SLEEP and RESET bits here to guarantee timing requirement
-    //pC_->writeReg32( axisBaseReg_ + reg, 1U << CTRL_EN_BIT );
+    /* Wake the physical driver before applying ENABLE/START. */
     asynPrint( pC_->pasynUserSelf
              , ASYN_TRACE_FLOW
-             , "Axis[%d]::%s(): enable motor\n"
+             , "Axis[%d]::%s(): wake motor driver\n"
 	     , axisNo_
 	     , __func__
 	     );
-    writeAxisReg( REG_CONTROL, 1U << CTRL_EN_BIT );
+    pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_SLEEP_BIT, 1, 0);
+    epicsThreadSleep(0.001);
+    pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_EN_BIT, 1, 1);
 
     /* Velocity parameters */
     vBase_ = fabs(minVelocity);
     vMax_  = fabs(maxVelocity);
-    //tAccel_ = (vMax_ - vBase_) / fabs(acceleration);
-    tAccel_ = fabs(acceleration);
+    /* asyn passes acceleration in controller steps/s^2, not ACCL seconds. */
+    const double accel = fabs(acceleration);
+    tAccel_ = (accel > 0.0) ? (vMax_ - vBase_) / accel : PROFILE_UPDATE_SEC;
 
     if (vBase_ < 1.0) vBase_ = 1.0;        /* minimum 1 step/sec */
     if (vMax_ < vBase_) vMax_ = vBase_;
@@ -274,6 +276,14 @@ asynStatus zynqMotorAxis::move(double position, int relative,
 
     dAccelSteps_ = static_cast<uint32_t>(dAccel + 0.5);
     decelStartRemaining_ = dAccelSteps_;
+
+    std::cout << "Profile: total=" << totalMoveSteps_
+              << " vBase=" << vBase_
+              << " vMax=" << vMax_
+              << " tAccel=" << tAccel_
+              << " dAccel=" << dAccelSteps_
+              << " decelAt=" << decelStartRemaining_
+              << std::endl;
 
     /* Record move start state */
     moveStartPos_ = softPosition_;
@@ -347,6 +357,7 @@ asynStatus zynqMotorAxis::stop(double acceleration)
 
     /* Disable the motor */
     pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_EN_BIT, 1, 0);
+    pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_SLEEP_BIT, 1, 1);
 
     /* Update position based on steps completed so far */
     uint32_t remaining = pC_->readReg32(axisRegBase_ + REG_STEP_RB);
@@ -415,6 +426,8 @@ asynStatus zynqMotorAxis::poll(bool *moving)
         profileActive_ = false;
         profilePhase_ = PHASE_IDLE;
         pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_EN_BIT, 1, 0);
+        pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_SLEEP_BIT, 1, 1);
+        moveRequested_ = false;
         moveState_ = MOVE_IDLE;
 	break;
     }
@@ -454,9 +467,14 @@ asynStatus zynqMotorAxis::poll(bool *moving)
     uint32_t limitPol = pC_->readRegField(axisRegBase_ + REG_CFG, CFG_LIMIT_POL_BIT, 1);
     setIntegerParam(pC_->zynqLimitPol_, limitPol);
 
-    uint32_t ustepMode = pC_->readRegField(axisRegBase_ + REG_CFG,
-                                           CFG_USTEP_MODE_BIT, CFG_USTEP_MODE_WID);
-    setIntegerParam(pC_->zynqUstepMode_, ustepMode);
+    uint32_t mWord = pC_->readRegField( axisRegBase_ + REG_CFG
+                                      , CFG_USTEP_MODE_BIT
+                                      , CFG_USTEP_MODE_WID
+			      );
+
+    auto mode = TIDrv::getDrvUstepMode(pC_->drvModel_, mWord);
+    if (mode)
+        setIntegerParam(pC_->zynqUstepMode_, *mode);
 
     /* Read realtime position from hardware (64-bit, in microstep units = motor step units) */
     {
@@ -749,12 +767,18 @@ asynStatus zynqMotorController::writeInt32(asynUser *pasynUser, epicsInt32 value
         writeRegField(axBase + REG_CFG, CFG_LIMIT_POL_BIT, 1, value & 1);
     } else if (function == zynqUstepMode_)
     {
-        auto m_value = TIDrv::getDrvMWord( drvModel_, static_cast<uint32_t>(value) );
+        auto mValue = TIDrv::getDrvMWord(drvModel_, static_cast<uint32_t>(value));
+        if (!mValue) {
+            asynPrint(pasynUser, ASYN_TRACE_ERROR,
+                      "%s: unsupported microstep mode %d for axis %d\n",
+                      driverName, static_cast<int>(value), axisNo);
+            return asynError;
+        }
 
         writeRegField( axBase + REG_CFG
 	             , CFG_USTEP_MODE_BIT
 		     , CFG_USTEP_MODE_WID
-                     , m_value
+                     , *mValue
 		     );
     } else if (function == zynqSleep_)
     {

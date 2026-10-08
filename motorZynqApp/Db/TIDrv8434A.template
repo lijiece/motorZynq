@@ -59,3 +59,15 @@ record(mbbi, "$(P)$(M):UstepMode_RBV") {
     field(SCAN, "I/O Intr")
 }
 
+# Value 1 and 2 are both 1/2 step.  Value 6 is 1/32; the next supported
+# mode is 1/128, so there is no 1/64 entry.
+record(calcout, "$(P)$(M):CalcSREV") {
+    field(DESC, "Calculate microsteps per revolution")
+    field(INPA, "$(P)$(M):FullStepsPerRev CP MS")
+    field(INPB, "$(P)$(M):UstepMode_RBV.RVAL CP MS")
+    field(CALC, "A*2^(FLOOR(B)-(FLOOR(B)>1)+(FLOOR(B)>6))")
+    field(OUT,  "$(P)$(M).SREV PP")
+    field(OOPT, "Every Time")
+    field(DOPT, "Use CALC")
+    field(IVOA, "Don't drive outputs")
+}

@@ -1,4 +1,4 @@
-file "$(MOTORZYNQ)/db/TIDrv8434A.template"
+file "$(MOTORZYNQ)/db/TIDrv8825.template"
 {
 pattern
 {P,         M,                PORT,      ADDR}

@@ -47,3 +47,14 @@ record(mbbi, "$(P)$(M):UstepMode_RBV") {
     field(SCAN, "I/O Intr")
 }
 
+record(calcout, "$(P)$(M):CalcSREV") {
+    field(DESC, "Calculate microsteps per revolution")
+    field(INPA, "$(P)$(M):FullStepsPerRev CP MS")
+    field(INPB, "$(P)$(M):UstepMode_RBV.RVAL CP MS")
+    field(CALC, "A*2^FLOOR(B)")
+    field(OUT,  "$(P)$(M).SREV PP")
+    field(OOPT, "Every Time")
+    field(DOPT, "Use CALC")
+    field(IVOA, "Don't drive outputs")
+}
+

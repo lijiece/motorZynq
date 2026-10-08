@@ -67,57 +67,57 @@ record(bi, "$(P)$(M):LimitPol_RBV") {
     field(SCAN, "I/O Intr")
 }
 
-# -- Microstep Mode --
-record(mbbo, "$(P)$(M):UstepMode") {
-    field(DESC, "Microstep mode")
-    field(DTYP, "asynInt32")
-    field(OUT,  "@asyn($(PORT),$(ADDR))ZYNQ_USTEP_MODE")
-    field(ZRST, "Full step 100%")
-    field(ZRVL, "0")
-    field(ONST, "1/2 step")
-    field(ONVL, "1")
-    field(TWST, "1/4 step")
-    field(TWVL, "2")
-    field(THST, "1/8 step")
-    field(THVL, "3")
-    field(FRST, "1/16 step")
-    field(FRVL, "4")
-    field(FVST, "1/32 step")
-    field(FVVL, "5")
-    field(SXST, "1/128 step")
-    field(SXVL, "7")
-    field(SVST, "1/256 step")
-    field(SVVL, "8")
-    field(EIST, "NC 1/2 step")
-    field(EIVL, "17")
-    field(PINI, "YES")
-}
-
-record(mbbi, "$(P)$(M):UstepMode_RBV") {
-    field(DESC, "Microstep mode readback")
-    field(DTYP, "asynInt32")
-    field(INP,  "@asyn($(PORT),$(ADDR))ZYNQ_USTEP_MODE")
-    field(ZRST, "Full step 100%")
-    field(ZRVL, "0")
-    field(ONST, "1/2 step")
-    field(ONVL, "1")
-    field(TWST, "1/4 step")
-    field(TWVL, "2")
-    field(THST, "1/8 step")
-    field(THVL, "3")
-    field(FRST, "1/16 step")
-    field(FRVL, "4")
-    field(FVST, "1/32 step")
-    field(FVVL, "5")
-    field(SXST, "1/128 step")
-    field(SXVL, "7")
-    field(SVST, "1/256 step")
-    field(SVVL, "8")
-    field(EIST, "NC 1/2 step")
-    field(EIVL, "17")
-    field(UNSV, "INVALID")
-    field(SCAN, "I/O Intr")
-}
+## -- Microstep Mode --
+#record(mbbo, "$(P)$(M):UstepMode") {
+#    field(DESC, "Microstep mode")
+#    field(DTYP, "asynInt32")
+#    field(OUT,  "@asyn($(PORT),$(ADDR))ZYNQ_USTEP_MODE")
+#    field(ZRST, "Full step 100%")
+#    field(ZRVL, "0")
+#    field(ONST, "1/2 step")
+#    field(ONVL, "1")
+#    field(TWST, "1/4 step")
+#    field(TWVL, "2")
+#    field(THST, "1/8 step")
+#    field(THVL, "3")
+#    field(FRST, "1/16 step")
+#    field(FRVL, "4")
+#    field(FVST, "1/32 step")
+#    field(FVVL, "5")
+#    field(SXST, "1/128 step")
+#    field(SXVL, "7")
+#    field(SVST, "1/256 step")
+#    field(SVVL, "8")
+#    field(EIST, "NC 1/2 step")
+#    field(EIVL, "17")
+#    field(PINI, "YES")
+#}
+#
+#record(mbbi, "$(P)$(M):UstepMode_RBV") {
+#    field(DESC, "Microstep mode readback")
+#    field(DTYP, "asynInt32")
+#    field(INP,  "@asyn($(PORT),$(ADDR))ZYNQ_USTEP_MODE")
+#    field(ZRST, "Full step 100%")
+#    field(ZRVL, "0")
+#    field(ONST, "1/2 step")
+#    field(ONVL, "1")
+#    field(TWST, "1/4 step")
+#    field(TWVL, "2")
+#    field(THST, "1/8 step")
+#    field(THVL, "3")
+#    field(FRST, "1/16 step")
+#    field(FRVL, "4")
+#    field(FVST, "1/32 step")
+#    field(FVVL, "5")
+#    field(SXST, "1/128 step")
+#    field(SXVL, "7")
+#    field(SVST, "1/256 step")
+#    field(SVVL, "8")
+#    field(EIST, "NC 1/2 step")
+#    field(EIVL, "17")
+#    field(UNSV, "INVALID")
+#    field(SCAN, "I/O Intr")
+#}
 
 # -- Sleep Mode --
 record(bo, "$(P)$(M):Sleep") {
@@ -168,14 +168,3 @@ record(longout, "$(P)$(M):FullStepsPerRev") {
     field(PINI, "YES")
 }
 
-record(calcout, "$(P)$(M):CalcSREV") {
-    field(DESC, "Calculate microsteps per revolution")
-    field(INPA, "$(P)$(M):FullStepsPerRev CP MS")
-    # RVAL is the hardware mode code; VAL is the mbbi state index.
-    field(INPB, "$(P)$(M):UstepMode_RBV.RVAL CP MS")
-    field(CALC, "A*2^(FLOOR(B)&15)")
-    field(OUT,  "$(P)$(M).SREV PP")
-    field(OOPT, "Every Time")
-    field(DOPT, "Use CALC")
-    field(IVOA, "Don't drive outputs")
-}
