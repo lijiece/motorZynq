@@ -18,6 +18,7 @@
 
 #include <cstring>
 #include <cstdlib>
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <cstdio>
@@ -140,6 +141,9 @@ zynqMotorAxis::zynqMotorAxis(zynqMotorController *pC, int axisNo)
     , tAccel_             (0.0)
     , dAccelSteps_        (0)
     , decelStartRemaining_(0)
+    , decelStartRemainingActual_(0)
+    , lastStepRate_       (0)
+    , decelRampComplete_  (false)
 {
     memset(&moveStartTime_, 0, sizeof(moveStartTime_));
     memset(&decelStartTime_, 0, sizeof(decelStartTime_));
@@ -241,8 +245,8 @@ asynStatus zynqMotorAxis::move(double position, int relative,
     pC_->writeRegField(axisRegBase_ + REG_CONTROL, CTRL_EN_BIT, 1, 1);
 
     /* Velocity parameters */
-    vBase_ = fabs(minVelocity);
-    vMax_  = fabs(maxVelocity);
+    vBase_ = std::min(fabs(minVelocity), static_cast<double>(MAX_STEP_FREQ_HZ));
+    vMax_  = std::min(fabs(maxVelocity), static_cast<double>(MAX_STEP_FREQ_HZ));
     /* asyn passes acceleration in controller steps/s^2, not ACCL seconds. */
     const double accel = fabs(acceleration);
     tAccel_ = (accel > 0.0) ? (vMax_ - vBase_) / accel : PROFILE_UPDATE_SEC;
@@ -316,6 +320,7 @@ asynStatus zynqMotorAxis::move(double position, int relative,
 	     , initRate
 	     );
     writeAxisReg( REG_STEP_RATE, initRate );
+    lastStepRate_ = initRate;
 
     /* Start the move: write en=1, mstart=1 to control register.
      * Read-modify-write to preserve other bits, then set mstart (one-shot). */
@@ -337,6 +342,7 @@ asynStatus zynqMotorAxis::move(double position, int relative,
     /* Activate profiler — skip accel phase for constant-velocity moves */
     profilePhase_ = (vMax_ > vBase_) ? PHASE_ACCEL : PHASE_CRUISE;
     profileActive_ = true;
+    decelRampComplete_ = false;
 
     /* Signal poll() to enter MOVE_ACTIVE state */
     moveRequested_ = true;
@@ -522,14 +528,12 @@ void zynqMotorAxis::updateProfile()
     epicsTimeGetCurrent(&now);
 
     uint32_t remaining = pC_->readReg32(axisRegBase_ + REG_STEP_RB);
-    std::cout << remaining << " steps left\n";
     double v = vBase_;
 
     switch (profilePhase_) {
 
     case PHASE_ACCEL:
     {
-        std::cout << "Phase accelerating\n";
         double elapsed = epicsTimeDiffInSeconds(&now, &moveStartTime_);
 
         if (elapsed >= tAccel_) {
@@ -546,30 +550,52 @@ void zynqMotorAxis::updateProfile()
         if (remaining <= decelStartRemaining_ && remaining > 0) {
             profilePhase_ = PHASE_DECEL;
             epicsTimeGetCurrent(&decelStartTime_);
+            decelStartRemainingActual_ = remaining;
+            decelRampComplete_ = false;
             /* Recalculate v for decel below */
             v = vMax_;
+            std::cout << "Profile: decel start remaining=" << remaining
+                      << " threshold=" << decelStartRemaining_
+                      << " rate=" << velocityToStepRate(v) << std::endl;
         }
         break;
     }
 
     case PHASE_CRUISE:
-        std::cout << "Phase cruise\n";
         v = vMax_;
 	
         /* Start deceleration when remaining steps <= decel distance */
         if (remaining <= decelStartRemaining_ && remaining > 0) {
             profilePhase_ = PHASE_DECEL;
             epicsTimeGetCurrent(&decelStartTime_);
+            decelStartRemainingActual_ = remaining;
+            decelRampComplete_ = false;
+            std::cout << "Profile: decel start remaining=" << remaining
+                      << " threshold=" << decelStartRemaining_
+                      << " rate=" << velocityToStepRate(v) << std::endl;
         }
         break;
 
     case PHASE_DECEL:
     {
-        std::cout << "Phase deceleration\n";
         double elapsed = epicsTimeDiffInSeconds(&now, &decelStartTime_);
 
         if (elapsed >= tAccel_) {
             v = vBase_;
+            if (!decelRampComplete_) {
+                const double decelElapsed = epicsTimeDiffInSeconds(&now, &decelStartTime_);
+                const uint32_t decelSteps =
+                    (decelStartRemainingActual_ > remaining)
+                    ? (decelStartRemainingActual_ - remaining) : 0;
+                std::cout << "Profile: decel ramp complete remaining=" << remaining
+                          << " rate=" << velocityToStepRate(v)
+                          << " elapsed=" << decelElapsed
+                          << " steps=" << decelSteps
+                          << " avgRate=" << (decelElapsed > 0.0
+                              ? static_cast<double>(decelSteps) / decelElapsed : 0.0)
+                          << std::endl;
+                decelRampComplete_ = true;
+            }
         } else {
             /* Mirror of accel: v(t) = vMax - (vMax-vBase) * (1 - cos(pi*t/T)) / 2 */
             double frac = (1.0 - cos(M_PI * elapsed / tAccel_)) / 2.0;
@@ -579,15 +605,13 @@ void zynqMotorAxis::updateProfile()
         if (remaining == 0) {
             profilePhase_ = PHASE_DONE;
             profileActive_ = false;
+            std::cout << "Profile: complete\n";
         }
         break;
     }
 
     case PHASE_DONE:
-        
-        std::cout << "Phase done\n";
     case PHASE_IDLE:
-        std::cout << "Phase idle\n";
         profileActive_ = false;
         return;
     }
@@ -599,7 +623,11 @@ void zynqMotorAxis::updateProfile()
     /* Convert to step_rate and write to hardware */
     uint32_t stepRate = velocityToStepRate(v);
     if (stepRate == 0) stepRate = 1;
-    pC_->writeReg32(axisRegBase_ + REG_STEP_RATE, stepRate);
+    /* Do not rewrite an unchanged DDS increment during steady cruise. */
+    if (stepRate != lastStepRate_) {
+        pC_->writeReg32(axisRegBase_ + REG_STEP_RATE, stepRate);
+        lastStepRate_ = stepRate;
+    }
 }
 
 /* ================================================================== */

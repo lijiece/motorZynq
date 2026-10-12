@@ -41,7 +41,7 @@ static const uint8_t MTR_DRV_8825  = 0x0;
 static const uint8_t MTR_DRV_8434A = 0x1;
 
 static const uint64_t FPGA_CLOCK_HZ       = 100000000ULL;  /* 100 MHz */
-static const uint32_t MAX_STEP_FREQ_HZ    = 250000;        /* DRV8434A max */
+static const uint32_t MAX_STEP_FREQ_HZ    = 500000;        /* DRV8434A max */
 static const uint32_t COUNTER_BITS        = 32;
 static const uint64_t COUNTER_MAX         = (1ULL << COUNTER_BITS);
 static const uint32_t MAX_STEP_RATE       =
@@ -121,6 +121,9 @@ private:
     double   tAccel_;            /* acceleration time in seconds */
     uint32_t dAccelSteps_;       /* distance (steps) covered during accel phase */
     uint32_t decelStartRemaining_; /* step_rb threshold to begin deceleration */
+    uint32_t decelStartRemainingActual_; /* step_rb sampled when deceleration begins */
+    uint32_t lastStepRate_;       /* most recently programmed DDS step-rate word */
+    bool     decelRampComplete_;  /* diagnostic: nominal deceleration time elapsed */
     epicsTimeStamp moveStartTime_;
     epicsTimeStamp decelStartTime_;
 
