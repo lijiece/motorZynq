@@ -168,3 +168,15 @@ record(longout, "$(P)$(M):FullStepsPerRev") {
     field(PINI, "YES")
 }
 
+# -- VMAX limited by STEP pulse frequency
+record(calc, "$(P)$(M):StepLimitedVMAX_RBV") {
+    field(DESC, "STEP-limit maximum velocity")
+    field(INPA, "$(P)$(M):StepFreqLimit CP MS")
+    field(INPB, "$(P)$(M).UREV CP MS")
+    field(INPC, "$(P)$(M).SREV CP MS")
+    field(CALC, "A*B/C")
+    field(PREC, "4")
+    field(PINI, "YES")
+}
+
+

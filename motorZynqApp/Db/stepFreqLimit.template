@@ -1,0 +1,7 @@
+record(ao, "$(P)$(M):StepFreqLimit") {
+    field(DESC, "Configured max STEP frequency")
+    field(VAL,  "$(STEP_FREQ_LIMIT)")
+    field(EGU,  "Hz")
+    field(PINI, "YES")
+}
+

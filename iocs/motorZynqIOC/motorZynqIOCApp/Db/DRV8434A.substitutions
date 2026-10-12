@@ -7,3 +7,14 @@ pattern
 {"$(Sys)",  "{$(Dev)-Ax:3}",  "$(Port)", 2   }
 {"$(Sys)",  "{$(Dev)-Ax:4}",  "$(Port)", 3   }
 }
+
+
+file "$(MOTORZYNQ)/db/stepFreqLimit.template"
+{
+pattern
+{P,         M,                STEP_FREQ_LIMIT}
+{"$(Sys)",  "{$(Dev)-Ax:1}",  500000         }
+{"$(Sys)",  "{$(Dev)-Ax:2}",  500000         }
+{"$(Sys)",  "{$(Dev)-Ax:3}",  500000         }
+{"$(Sys)",  "{$(Dev)-Ax:4}",  500000         }
+}
