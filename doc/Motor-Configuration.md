@@ -16,9 +16,22 @@ Nanotec LGA281S10-B-UGAQ-019 | 1 | 1.32
 
 ## 2. Resolution
 
-### 2.1 Beam stopper
+### 2.1 Test motor
+
+- Motor
+  Nanotec SCA2018S0604-B
+  200 steps/rev
+
+- Gearbox
+  Nanotec GPL22-25
+  25:1 (25.2:1)
+
+### 2.2 Beam stopper
 
 - X-axis
-  0.3048 mm/rev
+  Nanotec LA201S06-B-UEAI
+  Screw lead: 0.3048 mm/rev
 
 - Z-axis
+  Nanotec LGA281S10-B-UGAQ-019
+  Screw lead: 0.635 mm/rev
